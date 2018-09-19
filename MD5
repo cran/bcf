@@ -1,4 +1,4 @@
-b9981570cc814b2419b2871ae4511ec0 *DESCRIPTION
+9f6969b871bf9f3befd77f234294fe32 *DESCRIPTION
 e4ff4442c2f4968fe3ccec6aa2615474 *NAMESPACE
 717ed8bb6b67188ee4abdfd552ce4d3c *R/RcppExports.R
 ae8a6707512522406346352a7b782e06 *R/bcf.R
@@ -9,7 +9,7 @@ eb8b8ef4989dec7e47d0d095ba68165d *R/zzz.R
 f4df9bf465b6a33330aa14681201d2cf *src/Makevars.win
 8f8d4e03cfacd509a1b1808ee57e6853 *src/RcppExports.cpp
 be01470b80ab9bc9a53a7da1fc831b36 *src/bcf_clean.cpp
-59e23a292fe3395cafa0668d9c4e2ee0 *src/bcf_clean_overpar.cpp
+a12125388c2dd4d6bd066383ca65e20b *src/bcf_clean_overpar.cpp
 2404f756675cfc4c833fb4aae726408a *src/bd.cpp
 07063b3bbe08e6c3a2a3885fcee4e381 *src/bd.h
 d70b617357fd70458a51fd6679170612 *src/funs.cpp

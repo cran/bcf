@@ -45,6 +45,8 @@ List bcfoverparRcppClean(NumericVector y_, NumericVector z_,
     randeff = false;
   }
 
+  if(randeff) Rcout << "Using random effects." << std::endl;
+
   std::string treef_name = as<std::string>(treef_name_);
   std::ofstream treef(treef_name.c_str());
 
@@ -163,7 +165,7 @@ List bcfoverparRcppClean(NumericVector y_, NumericVector z_,
 
   pi_mod.alpha = mod_alpha; //prior prob a bot node splits is alpha/(1+d)^beta, d is depth of node
   pi_mod.beta  = mod_beta;  //2 for bart means it is harder to build big trees.
-  pi_mod.tau   = con_sd/(sqrt(delta_mod)*sqrt(ntree_mod)); //sigma_mu, variance on leaf parameters
+  pi_mod.tau   = con_sd/(sqrt(delta_mod)*sqrt((double) ntree_mod)); //sigma_mu, variance on leaf parameters
   pi_mod.sigma = shat; //resid variance is \sigma^2_y/bscale^2 in the backfitting update
 
   pinfo pi_con;
@@ -172,7 +174,8 @@ List bcfoverparRcppClean(NumericVector y_, NumericVector z_,
 
   pi_con.alpha = con_alpha;
   pi_con.beta  = con_beta;
-  pi_con.tau   = con_sd/(sqrt(delta_con)*sqrt(ntree_con)); //sigma_mu, variance on leaf parameters
+  pi_con.tau   = con_sd/(sqrt(delta_con)*sqrt((double) ntree_con)); //sigma_mu, variance on leaf parameters
+
   pi_con.sigma = shat/fabs(mscale); //resid variance in backfitting is \sigma^2_y/mscale^2
 
   double sigma = shat;
@@ -446,7 +449,7 @@ List bcfoverparRcppClean(NumericVector y_, NumericVector z_,
         }
         delta_mod = gen.gamma(0.5*(1. + endnode_count), 1.0)/(0.5*(1 + ssq));
       }
-      pi_mod.tau   = con_sd/(sqrt(delta_mod)*sqrt(ntree_mod));
+      pi_mod.tau   = con_sd/(sqrt(delta_mod)*sqrt((double) ntree_mod));
 
 
 
@@ -514,7 +517,7 @@ List bcfoverparRcppClean(NumericVector y_, NumericVector z_,
 
       delta_con = gen.gamma(0.5*(1. + endnode_count), 1.0)/(0.5*(1 + ssq));
 
-      pi_con.tau   = con_sd/(sqrt(delta_con)*sqrt(ntree_con));
+      pi_con.tau   = con_sd/(sqrt(delta_con)*sqrt((double) ntree_con));
 
     } else {
       mscale = 1.0;
