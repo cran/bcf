@@ -1,0 +1,124 @@
+---
+title: "Prediction using BCF"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Prediction using BCF}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  fig.cap = "", 
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+In this vignette, we show how to use the `bcf` package to fit a model and use the fitted object to predict estimates for new data.
+
+```{r setup, warning=FALSE, message = FALSE}
+library(bcf)
+library(latex2exp)
+library(ggplot2)
+```
+
+We use the same data generating process as in the "Simple Example" vignette:
+
+```{r data, results='hide', warning=FALSE, message=FALSE}
+set.seed(1)
+
+## Training data
+p <- 3 # two control variables and one effect moderator
+n <- 1000
+n_burn <- 2000
+n_sim <- 1500
+
+x <- matrix(rnorm(n*(p-1)), nrow=n)
+x <- cbind(x, x[,2] + rnorm(n))
+weights <- abs(rnorm(n))
+
+# create targeted selection, whereby a practice's likelihood of joining the intervention (pi) 
+# is related to their expected outcome (mu)
+mu <- -1*(x[,1]>(x[,2])) + 1*(x[,1]<(x[,2])) - 0.1
+
+# generate treatment variable
+pi <- pnorm(mu)
+z <- rbinom(n,1,pi)
+
+# tau is the true treatment effect. It varies across practices as a function of
+# X3 and X2
+tau <- 1/(1 + exp(-x[,3])) + x[,2]/10
+
+# generate the response using q, tau and z
+y_noiseless <- mu + tau*z
+
+# set the noise level relative to the expected mean function of Y
+sigma <- diff(range(mu + tau*pi))/8
+
+# draw the response variable with additive error
+y <- y_noiseless + sigma*rnorm(n)/sqrt(weights)
+
+# Fitting the model
+bcf_out <- bcf(y               = y,
+               z               = z,
+               x_control       = x,
+               x_moderate      = x,
+               pihat           = pi,
+               nburn           = n_burn,
+               nsim            = n_sim,
+               w               = weights,
+               n_chains        = 2,
+               update_interval = 1)
+```
+
+
+## Predicting using BCF
+
+We make predictions at 10 new observations, including some extreme values:
+
+```{r new_observations}
+set.seed(1)
+n_test = 10
+x_test <- matrix(rnorm(n_test*(p-1), 0, 2), nrow=n_test) # sd of 2 makes x_test more dispersed than x
+x_test <- cbind(x_test, x_test[,2] + rnorm(n_test))
+mu_pred  <- -1*(x_test[,1]>(x_test[,2])) + 1*(x_test[,1]<(x_test[,2])) - 0.1
+pi_pred <- pnorm(mu_pred)
+z_pred  <- rbinom(n_test,1, pi_pred)
+```
+
+We now predict $y$ and estimate treatment effects $\tau$ for these new observations based on our fitted model.
+
+
+```{r predict}
+pred_out = predict(object=bcf_out,
+                   x_predict_control=x_test,
+                   x_predict_moderate=x_test,
+                   pi_pred=pi_pred,
+                   z_pred=z_pred,
+                   n_cores = 1,
+                   save_tree_directory = '.')
+```
+
+## Comparison
+
+Let's compare the results for our training and testing data. We will show the estimated treatment effects for training and test observations as a function of $x_3$, which is an effect modifier.
+
+```{r comparison, warning=FALSE, message=FALSE}
+tau_ests_preds <- data.frame(x     = c(x[,3], x_test[,3]),
+                             Mean  = c(colMeans(bcf_out$tau), 
+                                       colMeans(pred_out$tau)),
+                             Low95 = c(apply(bcf_out$tau, 2, quantile, 0.025), 
+                                       apply(pred_out$tau, 2, quantile, 0.025)),
+                             Up95  = c(apply(bcf_out$tau, 2, quantile, 0.975), 
+                                       apply(pred_out$tau, 2, quantile, 0.975)),
+                             group = factor(c(rep("training", n), rep("testing", n_test))),
+                             agroup = c(rep(0.2, n), rep(1, n_test)))
+ggplot(tau_ests_preds, aes(x, Mean, color = group)) +
+  geom_pointrange(aes(ymin = Low95, ymax = Up95), alpha = tau_ests_preds$agroup) +
+  xlab(TeX("$x_3$")) +
+  ylab(TeX("$\\hat{\\tau}$")) 
+```
+
+Note that the credible intervals get wider as the $x_3$ values get closer to the end of the range, as we would hope. 
+

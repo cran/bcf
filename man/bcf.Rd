@@ -4,27 +4,64 @@
 \alias{bcf}
 \title{Fit Bayesian Causal Forests}
 \usage{
-bcf(y, z, x_control, x_moderate = x_control, pihat, nburn, nsim, nthin = 1,
-  update_interval = 100, ntree_control = 200, sd_control = 2 * sd(y),
-  base_control = 0.95, power_control = 2, ntree_moderate = 50,
-  sd_moderate = sd(y), base_moderate = 0.25, power_moderate = 3, nu = 3,
-  lambda = NULL, sigq = 0.9, sighat = NULL, include_pi = "control",
-  use_muscale = TRUE, use_tauscale = TRUE)
+bcf(
+  y,
+  z,
+  x_control,
+  x_moderate = x_control,
+  pihat,
+  w = NULL,
+  random_seed = sample.int(.Machine$integer.max, 1),
+  n_chains = 4,
+  n_threads = max((RcppParallel::defaultNumThreads() - 2), 1),
+  nburn,
+  nsim,
+  nthin = 1,
+  update_interval = 100,
+  ntree_control = 200,
+  sd_control = 2 * sd(y),
+  base_control = 0.95,
+  power_control = 2,
+  ntree_moderate = 50,
+  sd_moderate = sd(y),
+  base_moderate = 0.25,
+  power_moderate = 3,
+  no_output = FALSE,
+  save_tree_directory = ".",
+  log_file = file.path(".", sprintf("bcf_log_\%s.txt", format(Sys.time(),
+    "\%Y\%m\%d_\%H\%M\%S"))),
+  nu = 3,
+  lambda = NULL,
+  sigq = 0.9,
+  sighat = NULL,
+  include_pi = "control",
+  use_muscale = TRUE,
+  use_tauscale = TRUE,
+  verbose = TRUE
+)
 }
 \arguments{
 \item{y}{Response variable}
 
 \item{z}{Treatment variable}
 
-\item{x_control}{Design matrix for the "prognostic" function mu(x)}
+\item{x_control}{Design matrix for the prognostic function mu(x)}
 
 \item{x_moderate}{Design matrix for the covariate-dependent treatment effects tau(x)}
 
-\item{pihat}{Length n estimates of}
+\item{pihat}{Length n estimates of propensity score}
+
+\item{w}{An optional vector of weights. When present, BCF fits a model \eqn{y | x ~ N(f(x), \sigma^2 / w)}, where \eqn{f(x)} is the unknown function.}
+
+\item{random_seed}{A random seed passed to R's set.seed}
+
+\item{n_chains}{An optional integer of the number of MCMC chains to run}
+
+\item{n_threads}{An optional integer of the number of threads to parallelize within chain bcf operations on}
 
 \item{nburn}{Number of burn-in MCMC iterations}
 
-\item{nsim}{Number of MCMC iterations to save after burn-in}
+\item{nsim}{Number of MCMC iterations to save after burn-in. The chain will run for nsim*nthin iterations after burn-in}
 
 \item{nthin}{Save every nthin'th MCMC iterate. The total number of MCMC iterations will be nsim*nthin + nburn.}
 
@@ -46,6 +83,12 @@ bcf(y, z, x_control, x_moderate = x_control, pihat, nburn, nsim, nthin = 1,
 
 \item{power_moderate}{Power for the tree prior on tau(x) trees (see details)}
 
+\item{no_output}{logical, whether to suppress writing trees and training log to text files, defaults to FALSE.}
+
+\item{save_tree_directory}{Specify where trees should be saved. Keep track of this for predict(). Defaults to working directory. Setting to NULL skips writing of trees.}
+
+\item{log_file}{file where BCF should save its logs when running multiple chains in parallel. This file is not written too when only running one chain.}
+
 \item{nu}{Degrees of freedom in the chisq prior on \eqn{sigma^2}}
 
 \item{lambda}{Scale parameter in the chisq prior on \eqn{sigma^2}}
@@ -61,25 +104,32 @@ or "both" are HIGHLY recommended with observational data.}
 \item{use_muscale}{Use a half-Cauchy hyperprior on the scale of mu.}
 
 \item{use_tauscale}{Use a half-Normal prior on the scale of tau.}
+
+\item{verbose}{logical, whether to print log of MCMC iterations, defaults to TRUE.}
 }
 \value{
-A list with elements
-\item{tau}{\code{nsim} by \code{n} matrix of posterior samples of individual treatment effects}
-\item{mu}{\code{nsim} by \code{n} matrix of posterior samples of individual treatment effects}
+A fitted bcf object that is a list with elements
+\item{tau}{\code{nsim} by \code{n} matrix of posterior samples of individual-level treatment effect estimates}
+\item{mu}{\code{nsim} by \code{n} matrix of posterior samples of prognostic function E(Y|Z=0, x=x) estimates}
 \item{sigma}{Length \code{nsim} vector of posterior samples of sigma}
 }
 \description{
 Fit Bayesian Causal Forests
 }
 \details{
-Fits the Bayesian Causal Forest model (Hahn et. al. 2018): For a response
-variable y, binary treatment z, and covariates x,
+Fits the Bayesian Causal Forest model (Hahn et. al. 2020): For a response
+variable y, binary treatment z, and covariates x, we return estimates of mu, tau, and sigma in
+the model
 \deqn{y_i = \mu(x_i, \pi_i) + \tau(x_i, \pi_i)z_i + \epsilon_i}
 where \eqn{\pi_i} is an (optional) estimate of the propensity score \eqn{\Pr(Z_i=1 | X_i=x_i)} and
 \eqn{\epsilon_i \sim N(0,\sigma^2)}
 
 Some notes:
 \itemize{
+   \item By default, bcf writes each sample (including the trees in the ensemble) for each chain to a text file, 
+   which is used for prediction by the predict.bcf function. These text files may be large if bcf is run for many samples, 
+   so we also provide an option to suppress this output by setting no_output = TRUE. If bcf is run with no_output = TRUE, 
+   it will not be possible to predict from the model after the fact.
    \item x_control and x_moderate must be numeric matrices. See e.g. the makeModelMatrix function in the
    dbarts package for appropriately constructing a design matrix from a data.frame
    \item sd_control and sd_moderate are the prior SD(mu(x)) and SD(tau(x)) at a given value of x (respectively). If
@@ -87,18 +137,16 @@ Some notes:
    have prior distribution \eqn{N(0, \sigma_\mu/m)}, where m is the number of trees.
    If use_muscale=TRUE then sd_control is the prior median of a half Cauchy prior for SD(mu(x)). If use_tauscale = TRUE,
    then sd_moderate is the prior median of a half Normal prior for SD(tau(x)).
-   \item By default the prior on \eqn{\sigma^2} is calibrated as in Chipman, George and McCulloch (2008).
-
-
+   \item By default the prior on \eqn{\sigma^2} is calibrated as in Chipman, George and McCulloch (2010).
 }
 }
 \examples{
-\donttest{
+\dontrun{
 
 # data generating process
 p = 3 #two control variables and one moderator
 n = 250
-#
+
 set.seed(1)
 
 x = matrix(rnorm(n*p), nrow=n)
@@ -133,7 +181,7 @@ tauhat = colMeans(tau_post)
 plot(tau, tauhat); abline(0,1)
 
 }
-\dontshow{
+\dontrun{
 
 # data generating process
 p = 3 #two control variables and one moderator
@@ -164,17 +212,19 @@ y = mu + sigma*rnorm(n)
 
 pihat = pnorm(q)
 
-bcf_fit = bcf(y, z, x, x, pihat, nburn=10, nsim=10)
+# nburn and nsim should be much larger, at least a few thousand each
+# The low values below are for CRAN.
+bcf_fit = bcf(y, z, x, x, pihat, nburn=100, nsim=10)
 
 # Get posterior of treatment effects
 tau_post = bcf_fit$tau
 tauhat = colMeans(tau_post)
 plot(tau, tauhat); abline(0,1)
+}
 
 }
-}
 \references{
-Hahn, Murray, and Carvalho(2017). Bayesian regression tree models for causal inference: regularization, confounding, and heterogeneous effects.
- https://arxiv.org/abs/1706.09523. (Call citation("bcf") from the
-command line for citation information in Bibtex format.)
+Hahn, Murray, and Carvalho (2020). Bayesian regression tree models for causal inference: regularization, confounding, and heterogeneous effects.
+ https://projecteuclid.org/journals/bayesian-analysis/volume-15/issue-3/Bayesian-Regression-Tree-Models-for-Causal-Inference--Regularization-Confounding/10.1214/19-BA1195.full. 
+ (Call citation("bcf") from the command line for citation information in Bibtex format.)
 }

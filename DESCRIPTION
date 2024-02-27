@@ -1,17 +1,39 @@
 Package: bcf
 Type: Package
-Title: Causal Inference for a Binary Treatment and Continuous Outcome
-        using Bayesian Causal Forests
-Version: 1.3.1
-Date: 2022-01-14
-Author: P. Richard Hahn, Jared S. Murray, and Carlos Carvalho
-Maintainer: Jared S. Murray <jared.murray@mccombs.utexas.edu>
-Description: Causal inference for a binary treatment and continuous outcome using Bayesian Causal Forests. See Hahn, Murray and Carvalho (2017) <arXiv:1706.09523> for additional information. This implementation relies on code originally accompanying Pratola et. al. (2013) <arXiv:1309.1906>.
+Title: Causal Inference using Bayesian Causal Forests
+Version: 2.0.2
+Date: 2024-02-23
+Authors@R: c(
+    person("Jared S.", "Murray", , "jared.murray@mccombs.utexas.edu", c("aut", "cre")),
+    person("P. Richard", "Hahn", role = "aut"),
+    person("Carlos", "Carvalho", role = "aut"),
+    person("Peter", "Mariani", role = "ctb"),
+    person("Constance", "Delannoy", role = "ctb"),
+    person("Mariel", "Finucane", role = "ctb"),
+    person("Lauren V.", "Forrow", role = "ctb"),
+    person("Drew", "Herren", role = "ctb"))
+Description: Causal inference for a binary treatment and continuous outcome using Bayesian Causal Forests. See Hahn, Murray and Carvalho (2020) <doi:10.1214/19-BA1195> for additional information. This implementation relies on code originally accompanying Pratola et. al. (2013) <arXiv:1309.1906>.
 License: GPL-3
-Depends: Rcpp (>= 0.10.4)
-LinkingTo: Rcpp, RcppArmadillo
+LinkingTo: Rcpp, RcppArmadillo, RcppParallel
 NeedsCompilation: yes
-RoxygenNote: 6.0.1
-Packaged: 2022-01-18 16:14:08 UTC; jared
 Repository: CRAN
-Date/Publication: 2022-01-18 17:12:45 UTC
+Imports: Rcpp, RcppParallel, coda (>= 0.19.3), Hmisc, parallel,
+        doParallel, foreach, matrixStats
+Suggests: testthat, spelling, knitr, rmarkdown, latex2exp, ggplot2,
+        rpart, rpart.plot, partykit
+SystemRequirements: GNU make
+Language: en-US
+VignetteBuilder: knitr
+Encoding: UTF-8
+RoxygenNote: 7.2.3
+Packaged: 2024-02-26 18:19:22 UTC; jm75583
+Author: Jared S. Murray [aut, cre],
+  P. Richard Hahn [aut],
+  Carlos Carvalho [aut],
+  Peter Mariani [ctb],
+  Constance Delannoy [ctb],
+  Mariel Finucane [ctb],
+  Lauren V. Forrow [ctb],
+  Drew Herren [ctb]
+Maintainer: Jared S. Murray <jared.murray@mccombs.utexas.edu>
+Date/Publication: 2024-02-27 17:30:05 UTC
